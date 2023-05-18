@@ -40,7 +40,7 @@ import copy
 from math import log2
 import numpy as np
 import sys
-# from ttictoc import tic,toc # For time measurements using tic() and print(toc())
+# from ttictoc import tic,toc # For time measurements using tic() and print(toc()).
 
 # init_printing(use_unicode = False, wrap_line = False)
 init_printing()
