@@ -4,7 +4,7 @@
 #  Tested      : Python 3.8.5, SymPy 1.11.2, NumPy 1.23.3
 #  Developer   : Dr. Kosuke Ohgo
 #  ULR         : https://github.com/ohgo1977/PO_Python
-#  Version     : 1.0.0
+#  Version     : 1.0.1
 # 
 #  Please read the manual (PO_Python_Manual.pdf) for details.
 # 
@@ -31,6 +31,10 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Version 1.0.1 
+# Revised on 5/24/2023
+# findterm(), Terms including a number (i.e., 'I1x') were not recognized.
 
 print("Hello from PO.py!\n")
 from sympy import exp, cos, sin, pi, symbols, I
@@ -1916,7 +1920,7 @@ class PO:
 
                     if sp.find(spin_label_tmp) >= 0:
                         id_tmp = jj
-                        phase_s = sp[sp.find(spin_label_tmp) + 1]
+                        phase_s = sp[sp.find(spin_label_tmp) + len(spin_label_tmp)]
                         
                         if phase_s == 'x':
                             phase_id = 1
