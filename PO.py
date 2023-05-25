@@ -32,6 +32,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
+# Version 1.1.0
+# Revised on 5/25/2023
+# Added simplify_exp(self), simplify_cos(self), findcoef(self, coef_in_cell)
+#
 # Version 1.0.1 
 # Revised on 5/24/2023
 # findterm(), Terms including a number (i.e., 'I1x') were not recognized.
@@ -2257,5 +2261,38 @@ class PO:
 
         return rho_cell, rho_num_cell
 
+#############  Added on 5/25/2023 - #############
+    def simplify_exp(self):
 
+        obj = copy.deepcopy(self)
+        for ii in range(len(obj.coef)):
+            obj.coef[ii] = obj.coef[ii].rewrite(exp).simplify()
 
+        obj = PO.CombPO(obj)
+        return obj
+
+    def simplify_cos(self):
+
+        obj = copy.deepcopy(self)
+        for ii in range(len(obj.coef)):
+            obj.coef[ii] = obj.coef[ii].rewrite(cos).simplify()
+
+        obj = PO.CombPO(obj)
+        return obj
+
+    def findcoef(self, coef_in_cell):
+
+        id_vec = []
+        for jj in range(len(coef_in_cell)):
+            coef_in = coef_in_cell[jj]
+            for ii in range(len(self.coef)):
+                if len(self.coef[ii].find(coef_in)) > 0:
+                    if PO.__index_switch == 1:
+                        id_vec = id_vec + [ii + 1] # 1-based index
+                    elif PO.__index_switch == 0: 
+                        id_vec = id_vec + [ii] # 0-based index
+
+        c, _, _ = np.unique(id_vec,return_index=True,return_inverse=True, axis=0)
+        id_vec = c.tolist()
+
+        return id_vec
