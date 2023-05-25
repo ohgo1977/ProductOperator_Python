@@ -4,16 +4,21 @@
 
 from PO import *
 
-print('Note that there are cases that the coeffcient is not simplified nicely.')
+print('\nNote that there are cases that the coeffcient is not simplified nicely.')
 print('In the case of DQ, for example,')
 print('I1pI2m:  I*exp(I*GZ*gH)*sin(GZ*gH)/2 - exp(I*GZ*gH)*cos(GZ*gH)/2 + 1/2 that should be 0')
 print('I1mI2p: -I*exp(I*GZ*gH)*sin(GZ*gH)/2 + exp(I*GZ*gH)*cos(GZ*gH)/2 + 1/2 that should be 1')
 print('This is due to a weak capability of simplify() used in PO.CombPO()')
-print('The combination with rewrite(cos) will improve the result,')
-print('but it is time consuming.')
+print('In such case, the combination with rewrite(cos) will improve the result.')
+print('However, it is time consuming if rewrite(cos) is used in PO.CombPO().')
+print('Instead, the result can be simplified after finishing the calculation.')
+print('In this example, simplify_cos() can be applied by setting simplify_switch as 1\n')
+
 
 init_status = 'DQ'
 gH = symbols('gH')
+simplify_switch = 1
+print('\nsimplify_switch:', simplify_switch, '\n')
 
 if init_status == 'SQ':
     spin_label_cell = ['I1']
@@ -36,6 +41,8 @@ for ii in range(2**ns):
             rho = PO.M2pol(M_in, spin_label_cell)
             rho.disp = 0
             rho = rho.pfg(1, gH_cell)
+            if simplify_switch == 1:
+                rho = rho.simplify_cos()
             rho.dispPO()
 
 print('Done!')
