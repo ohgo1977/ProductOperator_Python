@@ -15,22 +15,14 @@ if init_status == 'SQ':
 
 elif init_status == 'DQ':
     spin_label_cell = ['I1', 'I2']
-    # It is slow.
+    # It is relatively slow.
     rho_info = 'I1p*I2p'
 
 elif init_status == 'TQ':
     spin_label_cell = ['I1', 'I2', 'I3']
-    # It is impractically slow.
-    # rho_info = 'I1p*I2p*I3p'
+    # It is slow.
+    rho_info = 'I1p*I2p*I3p'
 
-    # It is impractically slow.
-    # rho_info = '4*I1x*I2x*I3x*(1/4) + 4*I1x*I2x*I3y*(I/4) + 4*I1x*I2y*I3x*(I/4) + 4*I1x*I2y*I3y*(-1/4) + 4*I1y*I2x*I3x*(I/4) + 4*I1y*I2x*I3y*(-1/4) + 4*I1y*I2y*I3x*(-1/4) + 4*I1y*I2y*I3y*(-I/4)'
-
-    # It is impractically slow.
-    # rho_info = 'I1p*I2p*I3p + I1m*I2m*I3m'
-
-    # It is pratically slow.
-    rho_info = '4*I1x*I2x*I3x*(1/2) + 4*I1x*I2y*I3y*(-1/2) + 4*I1y*I2x*I3y*(-1/2) + 4*I1y*I2y*I3x*(-1/2)'
 
 PO.create(spin_label_cell)
 from PO import *

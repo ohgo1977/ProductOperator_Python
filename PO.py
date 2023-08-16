@@ -4,7 +4,7 @@
 #  Tested      : Python 3.8.5, SymPy 1.11.2, NumPy 1.23.3
 #  Developer   : Dr. Kosuke Ohgo
 #  ULR         : https://github.com/ohgo1977/PO_Python
-#  Version     : 1.0.1
+#  Version     : 1.2.0
 # 
 #  Please read the manual (PO_Python_Manual.pdf) for details.
 # 
@@ -32,6 +32,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
+# Version 1.2.0
+# Revised on 8/16/2023
+# TR8 is implemented as a replacement of simplify() in CombPO, dispPO(), dephase(), and SigAmp() .
+#
 # Version 1.1.0
 # Revised on 5/25/2023
 # Added simplify_exp(self), simplify_cos(self), findcoef(self, coef_in_cell)
@@ -43,6 +47,7 @@
 print("Hello from PO.py!\n")
 from sympy import exp, cos, sin, pi, symbols, I
 from sympy import init_printing, Wild
+from sympy.simplify.fu import TR8
 import sympy as sym
 import copy
 from math import log2
@@ -270,7 +275,8 @@ class PO:
             axis_out[ii,:] = axis_in[IA_tmp,:]
             coef_out[ii,0] = sum(coef_in[tuple(IC_tmp),0])# Need to convert to tuple
 
-        coef_out  = sym.simplify(sym.nsimplify(sym.expand(coef_out), rational=True)) # This line will be good for dephase().
+        # coef_out  = sym.simplify(sym.nsimplify(sym.expand(coef_out), rational=True)) # This line will be good for dephase().
+        coef_out  = TR8(sym.nsimplify(sym.expand(coef_out), rational=True))
         len_coef_out = len(coef_out)
 
         ii_int = 0
@@ -660,7 +666,6 @@ class PO:
         obj = copy.deepcopy(self)# Give a differnt ID to obj from self
         PFGq_in = obj.PFGq
         coef_in = obj.coef
-        # coef_in  = sym.nsimplify(sym.expand(coef_in), rational=True) # This line will be good for dephase().
         s0 = obj.logs
         Zpfg = symbols('Zpfg')
 
@@ -669,7 +674,8 @@ class PO:
                 PFGq_tmp = PFGq_in[ii]
                 for jj in range(len(coef_in)):
                     # Replace PFGq_tmp to Zpfg
-                    coef_in[jj] = coef_in[jj].simplify()
+                    # coef_in[jj] = coef_in[jj].simplify()
+                    coef_in[jj] = TR8(coef_in[jj])
                     coef_in[jj] = coef_in[jj].subs(PFGq_tmp, Zpfg)
 
         # https://docs.sympy.org/latest/modules/core.html
@@ -680,7 +686,8 @@ class PO:
             coef_in[ii] = coef_in[ii].replace(exp(a*Zpfg),0) # exp(I*a*Zpfg) => 0
             coef_in[ii] = coef_in[ii].replace(exp(a*Zpfg + b),0) # exp(I*a*Zpfg + b) => 0
             # coef_in[ii] = sym.simplify(coef_in[ii]) # Conversion from exp to cos and sin
-            coef_in[ii] = coef_in[ii].rewrite(cos).simplify() # Conversion from exp to cos and sin
+            # coef_in[ii] = coef_in[ii].rewrite(cos).simplify() # Conversion from exp to cos and sin
+            coef_in[ii] = TR8(coef_in[ii].rewrite(cos)) # Conversion from exp to cos and sin
 
         obj.coef = coef_in
         obj_out = PO.CombPO(obj) #PFGq is reset to 0
@@ -2029,7 +2036,8 @@ class PO:
             else:
                 Ncoef_t = str(Ncoef[ii].astype(np.int64))
 
-            coef_t = str(sym.simplify(coef[ii]))
+            # coef_t = str(sym.simplify(coef[ii]))
+            coef_t = str(TR8(coef[ii]))
 
             if PO.__index_switch == 1:
                 line_id = ii + 1
@@ -2074,7 +2082,8 @@ class PO:
                     rho_V = rho_V.row_join(sym.Matrix([rho_M[ii,jj]]))
 
         a0_V = 2*I*PO.rec_coef(phR)*a0_V
-        a0_V = sym.nsimplify(sym.simplify(a0_V)).as_mutable() # sym.simplify makes a0_V as immutable
+        # a0_V = sym.nsimplify(sym.simplify(a0_V)).as_mutable() # sym.simplify makes a0_V as immutable
+        a0_V = sym.nsimplify(TR8(a0_V)).as_mutable() # TR8() makes a0_V as immutable
 
         # if self.disp == 1:
         #     ph_s = PO.ph_num2str(phR)
