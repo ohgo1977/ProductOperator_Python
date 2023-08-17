@@ -44,7 +44,7 @@
 # Revised on 5/24/2023
 # findterm(), Terms including a number (i.e., 'I1x') were not recognized.
 
-print("Hello from PO.py!\n")
+print("Hello from PO.py ver1.2.0!\n")
 from sympy import exp, cos, sin, pi, symbols, I
 from sympy import init_printing, Wild
 from sympy.simplify.fu import TR8

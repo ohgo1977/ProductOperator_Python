@@ -7,7 +7,7 @@
 from PO import *
 
 pfg_switch = 1
-init_status = 'DQ'
+init_status = 'TQ'
 
 if init_status == 'SQ':
     spin_label_cell = ['I1']
