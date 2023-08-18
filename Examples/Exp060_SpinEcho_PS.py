@@ -16,7 +16,6 @@ disp_bin = 1
 # Para end #
 
 # PS begin #
-PO.simp = 'mix'
 rho = rho.pulse(['I'], [ph1], [1/2*pi]) # 90-pulse
 rho = rho.cs(['I'], [oI*t]) # Chemical shift evolution
 # rho = rho.pulse(['I'],[ph2],[pi]) # 180-pulse,
