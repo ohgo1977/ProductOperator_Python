@@ -4,7 +4,7 @@
 #  Tested      : Python 3.8.5, SymPy 1.11.2, NumPy 1.23.3
 #  Developer   : Dr. Kosuke Ohgo
 #  ULR         : https://github.com/ohgo1977/PO_Python
-#  Version     : 1.2.0
+#  Version     : 1.3.0
 # 
 #  Please read the manual (PO_Python_Manual.pdf) for details.
 # 
@@ -32,6 +32,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
+# Version 1.3.0
+# Revised on 8/18/2023
+# Added a switch (PO.simp) for the simplification method between simplify(), TR8(), and fu().
+# This is a class variable.
+#
 # Version 1.2.0
 # Revised on 8/16/2023
 # TR8 is implemented as a replacement of simplify() in CombPO, dispPO(), dephase(), and SigAmp() .
@@ -44,7 +49,7 @@
 # Revised on 5/24/2023
 # findterm(), Terms including a number (i.e., 'I1x') were not recognized.
 
-print("Hello from PO.py ver1.2.0!\n")
+print("Hello from PO.py ver1.3.0!\n")
 from sympy import exp, cos, sin, pi, symbols, I
 from sympy import init_printing, Wild
 from sympy.simplify.fu import TR8
@@ -61,6 +66,8 @@ init_printing()
 class PO:
     spin_label_cell_default = ['I', 'S', 'K', 'L', 'M']
     # Default labels for spin_label
+
+    simp = 'simplify'
 
     __index_switch = 1
     if __index_switch != 1 and __index_switch != 0:
@@ -275,8 +282,25 @@ class PO:
             axis_out[ii,:] = axis_in[IA_tmp,:]
             coef_out[ii,0] = sum(coef_in[tuple(IC_tmp),0])# Need to convert to tuple
 
-        # coef_out  = sym.simplify(sym.nsimplify(sym.expand(coef_out), rational=True)) # This line will be good for dephase().
-        coef_out  = TR8(sym.nsimplify(sym.expand(coef_out), rational=True))
+        if self.simp == 'simplify':
+            coef_out  = sym.simplify(sym.nsimplify(sym.expand(coef_out), rational=True)) # This line will be good for dephase().
+
+        elif self.simp == 'TR8':
+            coef_out  = TR8(sym.nsimplify(sym.expand(coef_out), rational=True))
+
+        elif self.simp == 'fu':
+            coef_out  = sym.fu(sym.nsimplify(sym.expand(coef_out), rational=True))
+            
+        # elif self.simp == 'mix':
+        #     coef_out_simp = sym.simplify(sym.nsimplify(sym.expand(coef_out), rational=True))
+        #     coef_out_TR8 = TR8(sym.nsimplify(sym.expand(coef_out), rational=True))
+        #     for ii in range(len(coef_out)):
+        #         if len(str(coef_out_simp[ii,0])) >= len(str(coef_out_TR8[ii,0])):
+        #             coef_out[ii,0] = coef_out_TR8[ii,0]
+        #         else:
+        #             coef_out[ii,0] = coef_out_simp[ii,0]
+        #     coef_out = coef_out.as_immutable() # If no 'as_immutable()', the "'NoneType' object is not subscriptable" error occurs.
+            
         len_coef_out = len(coef_out)
 
         ii_int = 0
@@ -674,8 +698,19 @@ class PO:
                 PFGq_tmp = PFGq_in[ii]
                 for jj in range(len(coef_in)):
                     # Replace PFGq_tmp to Zpfg
-                    # coef_in[jj] = coef_in[jj].simplify()
-                    coef_in[jj] = TR8(coef_in[jj])
+                    if self.simp == 'simplify':
+                        coef_in[jj] = coef_in[jj].simplify()
+                    elif self.simp == 'TR8':
+                        coef_in[jj] = TR8(coef_in[jj])
+                    elif self.simp == 'fu':
+                        coef_in[jj] = coef_in[jj].fu()
+                    # elif self.simp == 'mix':
+                    #     coef_in_simp = coef_in[jj].simplify()
+                    #     coef_in_TR8 = TR8(coef_in[jj])
+                    #     if len(str(coef_in_simp)) >= len(str(coef_in_TR8)):
+                    #         coef_in[jj] = coef_in_TR8
+                    #     else:
+                    #         coef_in[jj] = coef_in_simp
                     coef_in[jj] = coef_in[jj].subs(PFGq_tmp, Zpfg)
 
         # https://docs.sympy.org/latest/modules/core.html
@@ -685,10 +720,22 @@ class PO:
             coef_in[ii] = coef_in[ii].rewrite(exp).expand() # This line is important to choose exp(I*a*Zpfg) correctly
             coef_in[ii] = coef_in[ii].replace(exp(a*Zpfg),0) # exp(I*a*Zpfg) => 0
             coef_in[ii] = coef_in[ii].replace(exp(a*Zpfg + b),0) # exp(I*a*Zpfg + b) => 0
-            # coef_in[ii] = sym.simplify(coef_in[ii]) # Conversion from exp to cos and sin
-            # coef_in[ii] = coef_in[ii].rewrite(cos).simplify() # Conversion from exp to cos and sin
-            coef_in[ii] = TR8(coef_in[ii].rewrite(cos)) # Conversion from exp to cos and sin
 
+            if self.simp == 'simplify':
+                coef_in[ii] = coef_in[ii].rewrite(cos).simplify() # Conversion from exp to cos and sin
+            elif self.simp == 'TR8':
+                coef_in[ii] = TR8(coef_in[ii].rewrite(cos)) # Conversion from exp to cos and sin
+            elif self.simp == 'fu':
+                coef_in[ii] = coef_in[ii].rewrite(cos).fu() # Conversion from exp to cos and sin
+            # elif self.simp == 'mix':
+            #     coef_in_simp = coef_in[ii].rewrite(cos).simplify()
+            #     coef_in_TR8 = TR8(coef_in[ii].rewrite(cos))
+            #     if len(str(coef_in_simp)) >= len(str(coef_in_TR8)):
+            #         coef_in[ii] = coef_in_TR8
+            #     else:
+            #         coef_in[ii] = coef_in_simp
+            #     coef_in = coef_in.as_immutable()
+               
         obj.coef = coef_in
         obj_out = PO.CombPO(obj) #PFGq is reset to 0
         # obj_out.PFGq = PFGq_in # No need to keep the record of PFGq_in
@@ -2036,8 +2083,19 @@ class PO:
             else:
                 Ncoef_t = str(Ncoef[ii].astype(np.int64))
 
-            # coef_t = str(sym.simplify(coef[ii]))
-            coef_t = str(TR8(coef[ii]))
+            if self.simp == 'simplify':
+                coef_t = str(sym.simplify(coef[ii]))
+            elif self.simp == 'TR8':                
+                coef_t = str(TR8(coef[ii]))
+            elif self.simp == 'fu':
+                coef_t = str(sym.fu(coef[ii]))
+            # elif self.simp == 'mix':
+            #     coef_t_simp = str(sym.simplify(coef[ii]))
+            #     coef_t_TR8 = str(TR8(coef[ii]))
+            #     if len(coef_t_simp) >= len(coef_t_TR8):
+            #         coef_t = coef_t_TR8
+            #     else:
+            #         coef_t = coef_t_simp
 
             if PO.__index_switch == 1:
                 line_id = ii + 1
@@ -2082,9 +2140,23 @@ class PO:
                     rho_V = rho_V.row_join(sym.Matrix([rho_M[ii,jj]]))
 
         a0_V = 2*I*PO.rec_coef(phR)*a0_V
-        # a0_V = sym.nsimplify(sym.simplify(a0_V)).as_mutable() # sym.simplify makes a0_V as immutable
-        a0_V = sym.nsimplify(TR8(a0_V)).as_mutable() # TR8() makes a0_V as immutable
 
+        if self.simp == 'simplify' or self.simp == 'fu':
+            a0_V = sym.nsimplify(sym.simplify(a0_V)).as_mutable() # sym.simplify makes a0_V as immutable
+        elif self.simp == 'TR8':
+            a0_V = sym.nsimplify(TR8(a0_V)).as_mutable() # TR8() makes a0_V as immutable
+        # elif self.simp == 'fu':
+        #     a0_V = sym.nsimplify(sym.fu(a0_V)).as_mutable() # sym.fu(a0_V)) causes an error           
+        # elif self.simp == 'mix':
+        #     a0_V_simp = sym.nsimplify(sym.simplify(a0_V))
+        #     a0_V_TR8 = sym.nsimplify(TR8(a0_V))
+        #     for ii in range(len(a0_V)):
+        #         if len(str(a0_V_simp)) >= len(str(a0_V_TR8)):
+        #             a0_V[ii] = a0_V_TR8[ii]
+        #         else:
+        #             a0_V[ii] = a0_V_simp[ii]
+        #     a0_V = a0_V.as_mutable()
+            
         # if self.disp == 1:
         #     ph_s = PO.ph_num2str(phR)
         #     print('phRec: ', ph_s)
@@ -2276,8 +2348,8 @@ class PO:
         obj = copy.deepcopy(self)
         for ii in range(len(obj.coef)):
             obj.coef[ii] = obj.coef[ii].rewrite(exp).simplify()
-
-        obj = PO.CombPO(obj)
+            
+        # obj = PO.CombPO(obj)
         return obj
 
     def simplify_cos(self):
@@ -2286,7 +2358,7 @@ class PO:
         for ii in range(len(obj.coef)):
             obj.coef[ii] = obj.coef[ii].rewrite(cos).simplify()
 
-        obj = PO.CombPO(obj)
+        # obj = PO.CombPO(obj)
         return obj
 
     def findcoef(self, coef_in_cell):

@@ -18,8 +18,10 @@ from PO import *
 
 init_status = 'DQ'
 gH = symbols('gH')
-simplify_switch = 0
+simplify_switch = 1
 print('\nsimplify_switch:', simplify_switch, '\n')
+
+PO.simp = 'TR8'
 
 if init_status == 'SQ':
     spin_label_cell = ['I1']
@@ -43,7 +45,7 @@ for ii in range(2**ns):
             rho.disp = 0
             rho = rho.pfg(1, gH_cell)
             if simplify_switch == 1:
-                rho = rho.simplify_cos()
+                rho = rho.simplify_exp()
             rho.dispPO()
 
 print('Done!')

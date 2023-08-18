@@ -29,6 +29,7 @@ from PO import *
 
 exec('rho = ' + rho_info)
 print(rho)
+PO.simp = 'TR8'
 
 gH_cell = [gH]*len(spin_label_cell)
 
