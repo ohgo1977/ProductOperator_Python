@@ -4,7 +4,7 @@
 #  Tested      : Python 3.8.5, SymPy 1.11.2, NumPy 1.23.3
 #  Developer   : Dr. Kosuke Ohgo
 #  ULR         : https://github.com/ohgo1977/PO_Python
-#  Version     : 1.3.0
+#  Version     : 1.4.0
 # 
 #  Please read the manual (PO_Python_Manual.pdf) for details.
 # 
@@ -12,7 +12,7 @@
 # 
 # MIT License
 #
-# Copyright (c) 2023 Kosuke Ohgo
+# Copyright (c) 2025 Kosuke Ohgo
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,11 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Version 1.4.0
+# Revised on 11/14/2025
+# Modified pfg() for the flexibility of the gradeint names.
+# Modified sections of the manual related to pfg() and dephase().
 #
 # Version 1.3.0
 # Revised on 8/18/2023
@@ -632,16 +637,21 @@ class PO:
         ii_vec = ii_vec[id_tmp]
         return id_vec, ii_vec
 
-    def pfg(self, G_coef, gamma_cell):
-        # obj = pfg(obj,G_coef,gamma_cell)
+    def pfg(self, G_coef, gamma_cell, *args):
+        # obj = pfg(obj,G_coef,gamma_cell, G_ch)
         # applys pulse field gradient to all spins.
         # G_coef is a relative strengh of the gradient field and 
         # gamma_cell a cell array including gyromagnetic ratio of the spins.
-        # Symbolic constant GZ is used as a stamp to show terms affected by pfg().
-        # This information is used in dephase().
+        # G_ch is used to generate a symbolic constant. E.g., if G_ch is 'x', the symbolic constant is 'Gx'.
+        # If G_ch is not assigined, 'Z' is automatically used and 'GZ' will be generated.
         # This method was obitaned from POMA by Gunter (2006).
 
-        GZ = symbols('GZ')
+        if len(args) == 0:
+            G_ch = 'Z'
+        elif len(args) == 1:
+            G_ch = args[0]
+        GZ = symbols('G'+ G_ch)
+
         obj_tmp = self
         spin_label_cell = obj_tmp.spin_label
         disp0 = obj_tmp.disp
