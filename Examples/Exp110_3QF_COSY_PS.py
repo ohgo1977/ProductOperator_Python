@@ -20,7 +20,7 @@ disp_bin = 1
 # PS begin #
 PO.simp = 'fu'
 rho = rho.pulse_phshift(['I*'], [ph1], [1/2*pi])
-rho = rho.cs(['I*'], [o1*t])
+rho = rho.cs(['I*'], [o1*t1])
 rho = rho.jc(['I1I2', 'I1I3'], [pi*J12*t1, pi*J13*t1])
 rho = rho.pulse_phshift(['I*'], [ph1], [1/2*pi])
 rho = rho.pulse(['I*'], [0], [1/2*pi])
