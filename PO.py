@@ -4,7 +4,7 @@
 #  Tested      : Python 3.8.5, SymPy 1.11.2, NumPy 1.23.3
 #  Developer   : Dr. Kosuke Ohgo
 #  ULR         : https://github.com/ohgo1977/PO_Python
-#  Version     : 1.4.0
+#  Version     : 2.0.0
 # 
 #  Please read the manual (PO_Python_Manual.pdf) for details.
 # 
@@ -12,7 +12,7 @@
 # 
 # MIT License
 #
-# Copyright (c) 2025 Kosuke Ohgo
+# Copyright (c) 2026 Kosuke Ohgo
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,23 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Version 2.0.0
+# PO methods M() and coherence() are introduced in this version instead of PO properties M and coherence used in version 1.x.x.
+#       The reason is that PO proerties are calculated at every time a PO object is generated. 
+#       Then, the calculation of M was making the process very slow as the method getM() for calculating M was using nsimplify().
+#       Also, the calculation of cohenrece uses the information of matrix representation. 
+#       Thus, the calcuation was also slow by calculating M for coherence.
+# sys.exit('Error Message') is replaced to raise ValueError('Error Message')
+#       sys.exit('Error Message') closes the current Pyton terminal so that the user can't see the error message and can't continue the work.
+#
+# Version 1.4.2
+# Revised on 2/13/2026
+# getM() is modified with nsimplify
+#
+# Version 1.4.1
+# Revised on 1/15/2026
+# Corrected a typo
 #
 # Version 1.4.0
 # Revised on 11/14/2025
@@ -54,7 +71,7 @@
 # Revised on 5/24/2023
 # findterm(), Terms including a number (i.e., 'I1x') were not recognized.
 
-print("Hello from PO.py ver1.4.0!\n")
+print("Hello from PO.py ver2.0.0!\n")
 from sympy import exp, cos, sin, pi, symbols, I
 from sympy import init_printing, Wild
 from sympy.simplify.fu import TR8
@@ -106,8 +123,6 @@ class PO:
         self.Ncoef = PO.getNcoef(self) # np.array
         self.txt = PO.getTxt(self)
         self.logs = self.txt
-        self.M = PO.getM(self) # sym.Matrix
-        self.coherence = PO.getCoherence(self) # sym.Matrix
 
     def __str__(self):
 
@@ -192,7 +207,6 @@ class PO:
                         at = 'a'
                     elif axis_v == 7:
                         at = 'b'
-                    # end
 
                     if PO.asterisk_bin == 0:
                         pt = pt + st + at
@@ -203,8 +217,6 @@ class PO:
                         else:
                             pt = pt + '*' + st + at 
                                   
-                # end
-            # end
         return pt
     
     def getNcoef(self):
@@ -253,9 +265,16 @@ class PO:
                 M_out = M_out + Mo
             
         # M_out = sym.simplify(M_out) # It makes the program slow.
-        # M_out = sym.nsimplify(M_out, rational=True) # It makes the program slow.
+        M_out = sym.nsimplify(M_out, rational=True) # It makes the program slow.
 
         return M_out
+    
+    def M(self):
+        # Alias of getM().
+        # version 1.x.x: M was a property, i.e., matrix = rho.M.
+        # version 2.x.x: M is a method, i.e, matrix = rho.M().
+        # Use this alias for minimum modifications from version 1 to version 2. 
+        return self.getM()
 
     def getCoherence(self):
         # Calculating a matrix swhoing coherences included in the current density operator.
@@ -264,12 +283,20 @@ class PO:
 
         spin_no = self.spin_no
         coherence_out = PO.rho_box(spin_no)[0]
+        M_in = self.M()
         for ii in range(2**spin_no):
             for jj in range(2**spin_no):
-                if self.M[ii,jj] == 0:
+                if M_in[ii,jj] == 0:
                     coherence_out[ii,jj] = 0
         return coherence_out
 
+    def coherence(self):
+        # Alias of getCoherence().
+        # version 1.x.x: coherence was a property, i.e., coherence = rho.coherence.
+        # version 2.x.x: coherence is a method, i.e, coherence = rho.coherence().
+        # Use this alias for minimum modifications from version 1 to version 2. 
+        return self.getCoherence()
+    
     def CombPO(self):
 
         # Combining coeffcieints of same type of terms in a PO-class object.
@@ -762,91 +789,175 @@ class PO:
         return obj_out
 
     def UrhoUinv_mt(self, H, q):
+            # obj = UrhoUinv_mt(obj,H,q)
+            # Calculation of the evolution of rho under q*H based on the cyclic
+            # commutations. The master table for the cyclic commutation is used.
+            #
+            # obj: PO class object with any basis. 
+            #   H: PO class object with xyz-basis.
+            #   q: angle in radian (symbolic or double)
+            #
+            # The size of H.axis should be 1 x n, i.e., only single term.
+            # The value in H.coef is multiplied to q in the calculation.
+            # Example 1. H = -Iz
+            # Rotation around -Z-axis with angle q is equivalent to rotation around Z-axis with -q
+            # Exmaple 2. H = Iz*Sz 
+            # H.axis = [3 3] and Ncoef = 2 is calculated from H.axis, indicating H.axis corresponds to 2IzSz.
+            # Thus, H can be described as H = 2IzSz*1/2 and H.coef becomes 1/2. 
+            # Keeler, Understanding NMR Spectroscopy, p. 155.
+            #
+            # Master Table of Cyclic Commutation
+            # if [A,B] = iC,[B,C] = iA, and [C,A] = iB (i.e. cyclic commutation)
+            # then exp(-iqA)*B*exp(iqA) = B*cos(q) + C*sin(q)
+            # The selection of C can be done using the table below from the axis values of A and B.
+            #
+            #             B
+            #          x  y  z
+            #          1  2  3
+            #        ---------
+            #       |C 
+            #    x 1|  0  3 -2
+            # A  y 2| -3  0  1
+            #    z 3|  2 -1  0
+            #
+            # If C is 0, no actions
+            # If C is a negative value, change the sign of PO.coef.
 
         if not(isinstance(self, PO)) or not(isinstance(H, PO)):
-            sys.exit('Both obj and H should be the PO object!')
+            raise ValueError('Both obj and H should be the PO object!')
 
         if H.basis != 'xyz':
-            sys.exit('The basis of H should be xyz!')
+            raise ValueError('The basis of H should be xyz!')
 
         if H.axis.shape[0] > 1:
-            sys.exit('H must be a single term!')
+            raise ValueError('H must be a single term!')
 
         basis_org = self.basis
         self = PO.set_basis(self,'xyz')
 
-        mt = np.matrix([[0, 3, -2],[-3, 0, 1],[2, -1, 0]])
         mt_large = np.matrix([[0, 3, -2, 1],[-3, 0, 1, 2],[2, -1, 0, 3],[1, 2, 3, 0]])
+            #             B
+            #          x  y  z  E
+            #          1  2  3  4
+            #        ------------
+            #       |C 
+            #    x 1|  0  3 -2  1
+            # A  y 2| -3  0  1  2
+            #    z 3|  2 -1  0  3
+            #    E 4|  1  2  3  0
+            #
+            # Row 4 and Colmn 4 are special cases for hE.
+            # The axis value for hE is temporarily replaced with 4
+            # so that the axis value for hE can be used as an index.
+            #
+            # Example when Row 4 and Colmn 4 are required.
+            # A =  Ix*hE (axis = [1 4]) # 0 is repaced to 4
+            # B =  Iz*Sx (axis = [3 1])
+            # C = -Iy*Sx (mt_large[1,3] = -2, mt_large[4,1] = 1) # 1-based index
+            #
+            # In the actula calculation, 1 is subtracted from axis values for 0-based index.
+            # C = -Iy*Sx (mt_large[0,2] = -2, mt_large[3,0] = 1) # 0-based index
+            #
+            # The table above is based on 1-based index that is used in MATLAB.
+            # Python uses 0-based index. Thus, it can be changed to
+            #             B
+            #          E  x  y  z
+            #          0  1  2  3 
+            #        ------------
+            #       |C
+            #    E 0|  0  1  2  3 
+            # A  x 1|  1  0  3 -2
+            #    y 2|  2 -3  0  1
+            #    z 3|  3  2 -1  0
+            #
+            # This change may be done in the future version.
+
         q = q*H.coef # Matrix
         q = q[0,0]# Matrix to a single symbolic value
 
-        H_axis = np.array(H.axis)
+        H_axis = np.array(H.axis) # np array
 
-        type_mask_mat = (np.multiply(self.axis, H_axis) != 0)*1 # [True, False] => [0, 1] 
-        axis_diff_mat = (self.axis != H_axis)*1 # [True, False] => [0, 1] 
+        # Rule 1. There should be at least one spin type matching between H and rho.
+        type_mask_mat = (np.multiply(self.axis, H_axis) != 0)*1 
+        # Check how many spin types get matched, matched: 1, unmatched: 0.
+        # Example: Sy ([0,2]) and IzSz ([3,3]) => S spin gets matched.
+        # np.multiply([0,2],[3,3]) = [0,6] => !=0 => [False True] => *1 => [0 1]
+
+        # Rule 2. Only one spin type in the matching spin types has different axis labels between H and rho.
+        axis_diff_mat = (self.axis != H_axis)*1
+        # Check the difference of the direction of each spin type, matched: 0, unmatched: 1.
+        # Example: Sy ([0,2]) and IzSz ([3,3]) => ([0,2] != [3,3])*1 = [1,1]
         axis_mask_mat = np.multiply(type_mask_mat, axis_diff_mat)
+        # np.multiply([0,1],[1,1]) = [0,1]
         axis_mask_vec = axis_mask_mat.sum(axis=1)
+        # Summation horizontaly. If the value is 1, the master table can be applied.
 
-        # Python Assigment
-        # a = [1, 2, 3, 4]
-        # b = a
-        # b[0] = 'X'
-        # Then not only b but also a become
-        # ['X', 2, 3, 4]
-        axis_mask_vec2 = axis_mask_vec
-        axis_mask_vec2[axis_mask_vec2 != 1] = 0
+        axis_mask_vec2 = axis_mask_vec 
+        # MATLAB Style for debugging. To do so in Python, use copy.deepcopy().
+
+        axis_mask_vec2[axis_mask_vec2 != 1] = 0 
+        # Terms to be split to cos and sin: 1, otherwise: set the value to 0
+        
         axis_new_tmp = np.zeros((self.axis.shape[0] + axis_mask_vec2.sum(axis=0)[0,0], self.axis.shape[1]))
+        # axis for the new PO. The number of row will increase if sin terms should be added.
+        
         coef_new_tmp = sym.Matrix(np.zeros((self.axis.shape[0] + axis_mask_vec2.sum(axis=0)[0,0], 1)))
+        # coef for the new PO. The number of row will increase if sin terms should be added.
 
-        axis_mask_vec3 = axis_mask_vec2 # n x 1 matrix
-        id_tmp_vec = np.where(axis_mask_vec3 == 1)[0] # Info of row, array
+        axis_mask_vec3 = axis_mask_vec2 # n x 1
+        id_tmp_vec = np.where(axis_mask_vec3 == 1)[0] 
+        # Finding indexes of terms that should be split to cos and sin.
 
-        # Python Index
-        # MATLAB      => Python
-        # a(1:3,5:9)  => a[0:3, 4:9]
-        # a(1:5,:)    => a[0:5] or a[:5] or a[0:5, :]
-        # a(3:2:21,:) => a[2:21:2,:]
-        for ii in range(len(id_tmp_vec) - 1, -1, -1):
+        # Inserting the position markers for sin terms after cos terms.
+        # The marker is 2
+        for ii in range(len(id_tmp_vec) - 1, -1, -1): # From the last element to the 1st element
             id_tmp = id_tmp_vec[ii]
 
+            # 0: No-change, 1: cos term, 2: sin term
             if id_tmp != len(axis_mask_vec3) - 1:
                 axis_mask_vec3 = np.concatenate((np.concatenate((axis_mask_vec3[0:id_tmp + 1], np.matrix([2])),axis=0), axis_mask_vec3[id_tmp + 1:len(axis_mask_vec3)]),axis=0)
-
             elif id_tmp == len(axis_mask_vec3) - 1:
                 axis_mask_vec3 = np.concatenate((axis_mask_vec3[0:id_tmp + 1], np.matrix([2])),axis=0)
 
         # Non-sin terms
-        axis_new_tmp[np.where(axis_mask_vec3 != 2)[0],:] = self.axis
+        axis_new_tmp[np.where(axis_mask_vec3 != 2)[0],:] = self.axis # Copying the original axis
 
-        arr = np.where(axis_mask_vec3 != 2)[0]
+        arr = np.where(axis_mask_vec3 != 2)[0]# Indexes for components that are not equal to 2.
         id_tmp = arr.tolist()
         ii_int = 0
         for ii in id_tmp:
-            coef_new_tmp[ii,0] = self.coef[ii_int]
-            # ii_int = ii_int + 1
+            coef_new_tmp[ii,0] = self.coef[ii_int] # Copying the original coef
             ii_int += 1
 
         # sin terms
-        arr1 = np.where(axis_mask_vec3 == 1)[0]
+        arr1 = np.where(axis_mask_vec3 == 1)[0]# Indexes of cos term
         id_tmp1 = arr1.tolist()
-        arr2 = np.where(axis_mask_vec3 == 2)[0]
+        arr2 = np.where(axis_mask_vec3 == 2)[0]# Indexes of sin term
         id_tmp2 = arr2.tolist()
-        # print(coef_new_tmp[id_tmp, 0]) # This works.
-        # coef_new_tmp[id_tmp2,0] = coef_new_tmp[id_tmp1,0] # This doesn't work
+
         for ii in range(len(id_tmp1)):
-            coef_new_tmp[id_tmp2[ii],0] = coef_new_tmp[id_tmp1[ii],0]
+            coef_new_tmp[id_tmp2[ii],0] = coef_new_tmp[id_tmp1[ii],0]# copying coef of cos terms to sin terms
+            # Python programming note
+            # print(coef_new_tmp[id_tmp, 0]) # This works.
+            # coef_new_tmp[id_tmp2,0] = coef_new_tmp[id_tmp1,0] # This doesn't work
 
         # cos terms
         axis_cos = axis_new_tmp[np.where(axis_mask_vec3 == 1)[0],:]
         for ii in range(len(id_tmp1)):
-            coef_new_tmp[id_tmp1[ii],0] = cos(q)*coef_new_tmp[id_tmp1[ii],0]
+            coef_new_tmp[id_tmp1[ii],0] = cos(q)*coef_new_tmp[id_tmp1[ii],0]# multiplying cos(q) to coef.
 
         H_axis_mat = np.repeat(H_axis, axis_cos.shape[0], axis=0)
 
         axis_cos4 = axis_cos
         H_axis_mat4 = H_axis_mat
-        axis_cos4[axis_cos4 == 0] = 4
+        # At this point, 0:E, 1:x, 2:y, 3:z
+        axis_cos4[axis_cos4 == 0] = 4 
         H_axis_mat4[H_axis_mat4 == 0] = 4
+        # At this point, 4:E, 1:x, 2:y, 3:z. Use these values as indexes for mt_large.
+        #
+        # Note that this method is baed on MATLAB that uses 1-based indexes. 
+        # mat_large is desinged for 1-based index.
+        # Python used 0-based index.
 
         axis_sin = np.zeros((axis_cos4.shape[0], axis_cos4.shape[1]))
         for ii in range(axis_sin.shape[0]):
@@ -854,14 +965,23 @@ class PO:
             id1 = id1.astype(np.int64)
             id2 = axis_cos4[ii,:]
             id2 = id2.astype(np.int64)
-
             axis_sin_tmp = mt_large[np.ix_(id1 - 1, id2 - 1)]
             axis_sin[ii,:] = np.diag(axis_sin_tmp)
+            # Example
+            # Ix*hE: id1 - 1 = [0 3] 
+            # Iz*Sx: id2 - 1 = [2 0]
+            # axis_sin_tmp =
+            #    | mt_large[0,2], mt_large[0,0]|
+            #    | mt_large[3,2], mt_large[3,0]|
+            #  = | -2 0 |
+            #    |  3 1 |
+            # Only the diagonal compnents are necessary.
+            # axis_sin = [-2,1] => -Iy*Sx
 
         axis_new_tmp[np.where(axis_mask_vec3 == 2)[0],:] = axis_sin
         axis_new_tmp = abs(axis_new_tmp)
 
-        # It looks that it is not necessary to add ~isempty(axis_sin) necessary.
+        # Determination of signs of sin terms
         axis_sin_sign = axis_sin
         axis_sin_sign[axis_sin_sign == 0] = 1
         axis_sin_sign = np.prod(np.sign(axis_sin_sign),axis=1)
@@ -869,7 +989,7 @@ class PO:
         arr2 = np.where(axis_mask_vec3 == 2)[0]
         id_tmp2 = arr2.tolist()
         for ii in range(len(id_tmp2)):
-            coef_new_tmp[id_tmp2[ii],0] = sin(q)*coef_new_tmp[id_tmp2[ii],0]*axis_sin_sign[ii]
+            coef_new_tmp[id_tmp2[ii],0] = sin(q)*coef_new_tmp[id_tmp2[ii],0]*axis_sin_sign[ii]# multiplying sin(q) to coef with sign.
 
         axis_new_tmp = np.matrix(axis_new_tmp) # if axis_new_tmp is array, it causes an error in getM
         obj_out = PO(self.spin_no, self.spin_label, axis_new_tmp, coef_new_tmp, 'xyz') # basis should be 'xyz'
@@ -880,7 +1000,7 @@ class PO:
     def xyz2pmz(self):
         # conversion from Cartesian operator basis to lowring/raising operator basis
         if self.basis != 'xyz':
-            sys.exit('The basis of the object should be xyz')
+            raise ValueError('The basis of the object should be xyz')
 
         axis_in = self.axis
         coef_in = self.coef
@@ -956,7 +1076,7 @@ class PO:
     def pmz2xyz(self):
         # conversion from Cartesian operator basis to lowring/raising operator basis
         if self.basis != 'pmz':
-            sys.exit('The basis of the object should be pmz')
+            raise ValueError('The basis of the object should be pmz')
 
         axis_in = self.axis
         coef_in = self.coef
@@ -1042,8 +1162,8 @@ class PO:
     def xyz2pol(self):
         # conversion from Cartesian operator basis to Polarization operator basis
         if self.basis != 'xyz':
-            sys.exit('The basis of the object should be xyz')
-
+            raise ValueError('The basis of the object should be xyz')
+       
         axis_in = self.axis
         coef_in = self.coef
         spin_no = self.spin_no
@@ -1114,7 +1234,7 @@ class PO:
     def pol2xyz(self):
         # conversion from Polarization operator basis to Cartesian operator basis.
         if self.basis != 'pol':
-            sys.exit('The basis of the object should be pol')
+            raise ValueError('The basis of the object should be pol')
 
         axis_in = self.axis
         coef_in = self.coef
@@ -1193,7 +1313,7 @@ class PO:
     def pmz2pol(self):
         # conversion from lowring/raising operator basis to Polarization operator basis
         if self.basis != 'pmz':
-            sys.exit('The basis of the object should be pmz')
+            raise ValueError('The basis of the object should be pmz')
 
         axis_in = self.axis
         coef_in = self.coef
@@ -1268,7 +1388,7 @@ class PO:
     def pol2pmz(self):
         # conversion from Polarization operator basis to lowring/raising operator basis
         if self.basis != 'pol':
-            sys.exit('The basis of the object should be pol')
+            raise ValueError('The basis of the object should be pol')
 
         axis_in = self.axis
         coef_in = self.coef
@@ -1383,6 +1503,7 @@ class PO:
 
 
     def add_sub_fun(self, other, add_sub_coef):
+        # This method is used in __add__(), __radd__(), __sub__(), __rsub__()
         spin_no = self.spin_no
         spin_label = self.spin_label
         basis = self.basis
@@ -1391,7 +1512,7 @@ class PO:
 
         if isinstance(other, PO):
             if self.axis.shape[1] != other.axis.shape[1]:
-                sys.exit('The number of spin types for obj1 and obj2 must be same!')
+                raise ValueError('The number of spin types for obj1 and obj2 must be same!')
 
             # xyz + pmz => pmz
             if (self.basis == 'xyz' and other.basis == 'pmz') or \
@@ -1469,7 +1590,7 @@ class PO:
 
         elif isinstance(other, PO) == 1:
             if self.axis.shape[1] != other.axis.shape[1]:
-                sys.exit('The number of spin types for obj1 and obj2 must be same!')
+                raise ValueError('The number of spin types for obj1 and obj2 must be same!')
 
             # xyz * xyz
             if self.basis == 'xyz' and other.basis == 'xyz':
@@ -1520,7 +1641,7 @@ class PO:
             coef2V = np.repeat(coef2, row1, axis=0)# repeat: numpy, coef: sympy, coef2V: numpy
             Ncoef2V = np.repeat(Ncoef2, row1, axis=0)
 
-            comp_M = np.multiply(axis1M, axis2M) > 0
+            comp_M = np.multiply(axis1M, axis2M) > 0 # Excluding hE
             comp_M = comp_M * 1
             comp_V = comp_M.sum(axis=1)
 
@@ -1569,7 +1690,7 @@ class PO:
         if isinstance(self, PO) == 1 and isinstance(other, PO) != 1:
             obj = 1/other*self
         else:
-            sys.exit('PO-class object cannot the be the divisor!') 
+            raise ValueError('PO-class object cannot the be the divisor!') 
             # This branch works when both self and other are PO.
         return obj
 
@@ -1584,12 +1705,10 @@ class PO:
                     else:
                         obj = obj*self
             else:
-                sys.exit('Can''t calculate obj^-n!')
+                raise ValueError('Can''t calculate obj^-n!')
         else:
-            sys.exit('n in obj^n should be 0 or a positive integer!')
+            raise ValueError('n in obj^n should be 0 or a positive integer!')
         return obj
-
-
 
     def create(spin_label, *args):
         # Function to create basic product operators.
@@ -1625,7 +1744,6 @@ class PO:
                 elif jj == 6:
                     phase_s = 'b'
                     basis = 'pol'
-                # end 
 
                 axis = [0]*spin_no
                 axis[ii] = jj + 1
@@ -1636,8 +1754,6 @@ class PO:
                 cmd_s = sp + ' = PO(spin_no, spin_label, axis, coef, basis)'
                 # https://qiita.com/Masahiro_T/items/1e5ff567fa5a3c5aebf9
                 exec(cmd_s, locals(), globals())
-            # end
-        # end
 
         axis = [0]*spin_no
         axis = np.matrix(axis)
@@ -1835,8 +1951,7 @@ class PO:
                 try:
                     exec(ps_lines[jj], locals(), globals()) # At what scope this line is executed?
                 except:
-                     sys.exit('PS Line ' + str(jj))
-
+                     raise ValueError('PS Line ' + str(jj))
             # Store rho
             rho_cell[int_ii] = rho # rho can be accessible from run_PS, global
 
@@ -1854,7 +1969,7 @@ class PO:
 
         # Observable
         rho_obs = PO.observable(rho_total, obs_cell)
-        print('\nPulse Seuqnce: Done!')
+        print('\nPulse Sequence: Done!')
         return rho_cell, rho_detect_cell, rho_total, rho_obs, a0_M, rho_M
 
     def observable(self, *args):
@@ -2132,15 +2247,15 @@ class PO:
             sp_m = sp_tmp + 'm'
             exec('obsPO = '+ sp_m, {}, globals())
             if ii == 0:
-                obsPO_M = obsPO.M
+                obsPO_M = obsPO.M()
             else:
-                obsPO_M = obsPO_M + obsPO.M
+                obsPO_M = obsPO_M + obsPO.M()
 
         a0_V = sym.Matrix([])
         rho_V = sym.Matrix([])
 
-        rho_M = self.coherence
-        self_M = self.M
+        rho_M = self.coherence()
+        self_M = self.M()
 
         for ii in range(obsPO_M.shape[0]):
             for jj in range(obsPO_M.shape[1]):
@@ -2259,15 +2374,15 @@ class PO:
         M_in = sym.Matrix(M_in)
 
         if M_in.shape[0] != M_in.shape[1]:
-            sys.exit('M_in should be 2^n x 2^n !')
+            raise ValueError('M_in should be 2^n x 2^n !')
     
         spin_no = log2(M_in.shape[0])
         if spin_no%1 != 0:
-            sys.exit('M_in should be 2^n x 2^n !')
+            raise ValueError('M_in should be 2^n x 2^n !')
         spin_no = int(spin_no)
 
         if len(spin_label_cell) < spin_no:
-            sys.exit('the size of spin_label_cell must be same as or bigger than spin_no')
+            raise ValueError('the size of spin_label_cell must be same as or bigger than spin_no')
 
         spin_label = spin_label_cell[0:spin_no]
         rho_num_cell = PO.rho_box(spin_no)[1] # Use for axis
@@ -2359,7 +2474,7 @@ class PO:
         for ii in range(len(obj.coef)):
             obj.coef[ii] = obj.coef[ii].rewrite(exp).simplify()
             
-        # obj = PO.CombPO(obj)
+        # obj = PO.CombPO(obj) # Should not use CombPO as PFGq() will be eleminated.
         return obj
 
     def simplify_cos(self):
