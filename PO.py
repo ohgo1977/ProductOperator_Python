@@ -4,7 +4,7 @@
 #  Tested      : Python 3.8.5, SymPy 1.11.2, NumPy 1.23.3
 #  Developer   : Dr. Kosuke Ohgo
 #  ULR         : https://github.com/ohgo1977/PO_Python
-#  Version     : 2.0.0
+#  Version     : 2.1.0
 # 
 #  Please read the manual (PO_Python_Manual.pdf) for details.
 # 
@@ -33,6 +33,15 @@
 # SOFTWARE.
 #
 # Version 2.1.0
+# Revised on 8/1/2026
+# A major bug in __mul__() was fixed.
+# It was due to the condition 'if comp_V[ii] == 1:' instead of 'if comp_V[ii] > 0:' in this fixed version.
+# This condition caused problems on some cases. 
+# An example is
+# rho1=2*Ix*Sx 
+# rho2=2*Iz*Sz
+# rho = rho1*rho2
+# In this case, comp_V[ii] = 2, and rho was calculated incorrectly.
 #
 # Version 2.0.0
 # Revised on 4/21/2026
@@ -1644,9 +1653,14 @@ class PO:
             coef2V = np.repeat(coef2, row1, axis=0)# repeat: numpy, coef: sympy, coef2V: numpy
             Ncoef2V = np.repeat(Ncoef2, row1, axis=0)
 
-            comp_M = np.multiply(axis1M, axis2M) > 0 # Excluding hE
-            comp_M = comp_M * 1
+            comp_M = np.multiply(axis1M, axis2M) > 0 # Output: True or False
+            comp_M = comp_M * 1 # Output: 1 or 0
             comp_V = comp_M.sum(axis=1)
+
+            # axis1M      axis2M      multiply(axis1M*axis2M) > 0    comp_V axis1M + axis2M
+            # [1 0 0]     [0 2 0]     [1 0 0].*[0 2 0] > 0 = [F F F]    0   [1 0 0] + [0 2 0] = [1 2 0] #
+            # [3 3 0]     [1 0 0]     [3 3 0].*[1 0 0] > 0 = [T F F]    1   [3 3 0] + [1 0 0] = [4 3 0] # Need to be corrected  
+            # [3 3 0]     [1 1 0]     [3 3 0].*[1 1 0] > 0 = [T T F]    2   [3 3 0] + [1 1 0] = [4 4 0] # Need to be corrected
 
             axis_new = axis1M + axis2M
             coef_new = np.multiply(coef1V, coef2V)# multiply: numpy
@@ -1656,7 +1670,7 @@ class PO:
             ct = 1/2*np.matrix([[1/2, 1*I, -1*I],[-1*I, 1/2, 1*I],[1*I, -1*I, 1/2]])
 
             for ii in range(comp_V.shape[0]):
-                if comp_V[ii] == 1:
+                if comp_V[ii] > 0:
                     comp_M_row = np.array(comp_M[ii,:])
                     jj_vec = np.where(comp_M_row == 1)[1]# There are two output
 
