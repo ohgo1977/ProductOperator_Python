@@ -32,7 +32,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
+# Version 2.1.0
+#
 # Version 2.0.0
+# Revised on 4/21/2026
 # PO methods M() and coherence() are introduced in this version instead of PO properties M and coherence used in version 1.x.x.
 #       The reason is that PO proerties are calculated at every time a PO object is generated. 
 #       Then, the calculation of M was making the process very slow as the method getM() for calculating M was using nsimplify().
