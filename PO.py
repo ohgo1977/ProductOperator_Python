@@ -4,7 +4,7 @@
 #  Tested      : Python 3.8.5, SymPy 1.11.2, NumPy 1.23.3
 #  Developer   : Dr. Kosuke Ohgo
 #  ULR         : https://github.com/ohgo1977/PO_Python
-#  Version     : 2.1.0
+#  Version     : 2.2.0
 # 
 #  Please read the manual (PO_Python_Manual.pdf) for details.
 # 
@@ -31,6 +31,10 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Version 2.2.0
+# Revised on 8/7/2026
+# UrhoUinv_mt() was rewritten to remove unnecessary lines and change the master table for 0-based index.
 #
 # Version 2.1.0
 # Revised on 8/1/2026
@@ -83,7 +87,7 @@
 # Revised on 5/24/2023
 # findterm(), Terms including a number (i.e., 'I1x') were not recognized.
 
-print("Hello from PO.py ver2.0.0!\n")
+print("Hello from PO.py ver2.2.0!\n")
 from sympy import exp, cos, sin, pi, symbols, I
 from sympy import init_printing, Wild
 from sympy.simplify.fu import TR8
@@ -801,40 +805,47 @@ class PO:
         return obj_out
 
     def UrhoUinv_mt(self, H, q):
-            # obj = UrhoUinv_mt(obj,H,q)
-            # Calculation of the evolution of rho under q*H based on the cyclic
-            # commutations. The master table for the cyclic commutation is used.
-            #
-            # obj: PO class object with any basis. 
-            #   H: PO class object with xyz-basis.
-            #   q: angle in radian (symbolic or double)
-            #
-            # The size of H.axis should be 1 x n, i.e., only single term.
-            # The value in H.coef is multiplied to q in the calculation.
-            # Example 1. H = -Iz
-            # Rotation around -Z-axis with angle q is equivalent to rotation around Z-axis with -q
-            # Exmaple 2. H = Iz*Sz 
-            # H.axis = [3 3] and Ncoef = 2 is calculated from H.axis, indicating H.axis corresponds to 2IzSz.
-            # Thus, H can be described as H = 2IzSz*1/2 and H.coef becomes 1/2. 
-            # Keeler, Understanding NMR Spectroscopy, p. 155.
-            #
-            # Master Table of Cyclic Commutation
-            # if [A,B] = iC,[B,C] = iA, and [C,A] = iB (i.e. cyclic commutation)
-            # then exp(-iqA)*B*exp(iqA) = B*cos(q) + C*sin(q)
-            # The selection of C can be done using the table below from the axis values of A and B.
-            #
-            #             B
-            #          x  y  z
-            #          1  2  3
-            #        ---------
-            #       |C 
-            #    x 1|  0  3 -2
-            # A  y 2| -3  0  1
-            #    z 3|  2 -1  0
-            #
-            # If C is 0, no actions
-            # If C is a negative value, change the sign of PO.coef.
+        # obj = UrhoUinv_mt(obj,H,q)
+        # Calculation of the evolution of rho under q*H based on the cyclic
+        # commutations. The master table for the cyclic commutation is used.
+        #
+        # obj: PO class object with any basis. 
+        #   H: PO class object with xyz-basis.
+        #   q: angle in radian (symbolic or double)
+        #
+        # The size of H.axis should be 1 x n, i.e., only single term.
+        #
+        # The value in H.coef is multiplied to q in the calculation.
+        #
+        # Example 1. H = -Iz
+        # Rotation around -Z-axis with angle q is equivalent to rotation around Z-axis with -q
+        #
+        # Exmaple 2. H = Iz*Sz 
+        # H.axis = [3 3] and Ncoef = 2 is calculated from H.axis, indicating H.axis corresponds to 2IzSz.
+        # Thus, H can be described as H = 2IzSz*1/2 and H.coef becomes 1/2. 
+        # Keeler, Understanding NMR Spectroscopy, p. 155.
+        #
+        # Master Table of Cyclic Commutation
+        # if [A,B] = iC,[B,C] = iA, and [C,A] = iB (i.e. cyclic commutation)
+        # then exp(-iqA)*B*exp(iqA) = B*cos(q) + C*sin(q)
+        # The selection of C can be done using the table below from the axis values of A and B.
+        #
+        #             B
+        #          x  y  z
+        #          1  2  3
+        #        ---------
+        #       |C 
+        #    x 1|  0  3 -2
+        # A  y 2| -3  0  1
+        #    z 3|  2 -1  0
+        #
+        # If C is 0, no actions
+        # If C is a negative value, change the sign of PO.coef.
+        #
+        # Note: The table above is based on the 1-based index.
+        # Actual calcuation is done with the 0-based index.
 
+        # Errors
         if not(isinstance(self, PO)) or not(isinstance(H, PO)):
             raise ValueError('Both obj and H should be the PO object!')
 
@@ -844,45 +855,9 @@ class PO:
         if H.axis.shape[0] > 1:
             raise ValueError('H must be a single term!')
 
+        # Initialization
         basis_org = self.basis
         self = PO.set_basis(self,'xyz')
-
-        mt_large = np.matrix([[0, 3, -2, 1],[-3, 0, 1, 2],[2, -1, 0, 3],[1, 2, 3, 0]])
-            #             B
-            #          x  y  z  E
-            #          1  2  3  4
-            #        ------------
-            #       |C 
-            #    x 1|  0  3 -2  1
-            # A  y 2| -3  0  1  2
-            #    z 3|  2 -1  0  3
-            #    E 4|  1  2  3  0
-            #
-            # Row 4 and Colmn 4 are special cases for hE.
-            # The axis value for hE is temporarily replaced with 4
-            # so that the axis value for hE can be used as an index.
-            #
-            # Example when Row 4 and Colmn 4 are required.
-            # A =  Ix*hE (axis = [1 4]) # 0 is repaced to 4
-            # B =  Iz*Sx (axis = [3 1])
-            # C = -Iy*Sx (mt_large[1,3] = -2, mt_large[4,1] = 1) # 1-based index
-            #
-            # In the actula calculation, 1 is subtracted from axis values for 0-based index.
-            # C = -Iy*Sx (mt_large[0,2] = -2, mt_large[3,0] = 1) # 0-based index
-            #
-            # The table above is based on 1-based index that is used in MATLAB.
-            # Python uses 0-based index. Thus, it can be changed to
-            #             B
-            #          E  x  y  z
-            #          0  1  2  3 
-            #        ------------
-            #       |C
-            #    E 0|  0  1  2  3 
-            # A  x 1|  1  0  3 -2
-            #    y 2|  2 -3  0  1
-            #    z 3|  3  2 -1  0
-            #
-            # This change may be done in the future version.
 
         q = q*H.coef # Matrix
         q = q[0,0]# Matrix to a single symbolic value
@@ -899,42 +874,40 @@ class PO:
         axis_diff_mat = (self.axis != H_axis)*1
         # Check the difference of the direction of each spin type, matched: 0, unmatched: 1.
         # Example: Sy ([0,2]) and IzSz ([3,3]) => ([0,2] != [3,3])*1 = [1,1]
+
         axis_mask_mat = np.multiply(type_mask_mat, axis_diff_mat)
         # np.multiply([0,1],[1,1]) = [0,1]
+
         axis_mask_vec = axis_mask_mat.sum(axis=1)
         # Summation horizontaly. If the value is 1, the master table can be applied.
 
-        axis_mask_vec2 = axis_mask_vec 
-        # MATLAB Style for debugging. To do so in Python, use copy.deepcopy().
-
-        axis_mask_vec2[axis_mask_vec2 != 1] = 0 
+        axis_mask_vec[axis_mask_vec != 1] = 0 
         # Terms to be split to cos and sin: 1, otherwise: set the value to 0
         
-        axis_new_tmp = np.zeros((self.axis.shape[0] + axis_mask_vec2.sum(axis=0)[0,0], self.axis.shape[1]))
+        axis_new_tmp = np.zeros((self.axis.shape[0] + axis_mask_vec.sum(axis=0)[0,0], self.axis.shape[1]))
         # axis for the new PO. The number of row will increase if sin terms should be added.
         
-        coef_new_tmp = sym.Matrix(np.zeros((self.axis.shape[0] + axis_mask_vec2.sum(axis=0)[0,0], 1)))
+        coef_new_tmp = sym.Matrix(np.zeros((self.axis.shape[0] + axis_mask_vec.sum(axis=0)[0,0], 1)))
         # coef for the new PO. The number of row will increase if sin terms should be added.
 
-        axis_mask_vec3 = axis_mask_vec2 # n x 1
-        id_tmp_vec = np.where(axis_mask_vec3 == 1)[0] 
+        id_tmp_vec = np.where(axis_mask_vec == 1)[0] 
         # Finding indexes of terms that should be split to cos and sin.
 
         # Inserting the position markers for sin terms after cos terms.
-        # The marker is 2
+        # The marker for sin terms is 2
         for ii in range(len(id_tmp_vec) - 1, -1, -1): # From the last element to the 1st element
             id_tmp = id_tmp_vec[ii]
 
             # 0: No-change, 1: cos term, 2: sin term
-            if id_tmp != len(axis_mask_vec3) - 1:
-                axis_mask_vec3 = np.concatenate((np.concatenate((axis_mask_vec3[0:id_tmp + 1], np.matrix([2])),axis=0), axis_mask_vec3[id_tmp + 1:len(axis_mask_vec3)]),axis=0)
-            elif id_tmp == len(axis_mask_vec3) - 1:
-                axis_mask_vec3 = np.concatenate((axis_mask_vec3[0:id_tmp + 1], np.matrix([2])),axis=0)
+            if id_tmp != len(axis_mask_vec) - 1:
+                axis_mask_vec = np.concatenate((np.concatenate((axis_mask_vec[0:id_tmp + 1], np.matrix([2])),axis=0), axis_mask_vec[id_tmp + 1:len(axis_mask_vec)]),axis=0)
+            elif id_tmp == len(axis_mask_vec) - 1:
+                axis_mask_vec = np.concatenate((axis_mask_vec[0:id_tmp + 1], np.matrix([2])),axis=0)
 
         # Non-sin terms
-        axis_new_tmp[np.where(axis_mask_vec3 != 2)[0],:] = self.axis # Copying the original axis
+        axis_new_tmp[np.where(axis_mask_vec != 2)[0],:] = self.axis # Copying the original axis
 
-        arr = np.where(axis_mask_vec3 != 2)[0]# Indexes for components that are not equal to 2.
+        arr = np.where(axis_mask_vec != 2)[0]# Indexes for components that are not equal to 2.
         id_tmp = arr.tolist()
         ii_int = 0
         for ii in id_tmp:
@@ -942,9 +915,9 @@ class PO:
             ii_int += 1
 
         # sin terms
-        arr1 = np.where(axis_mask_vec3 == 1)[0]# Indexes of cos term
+        arr1 = np.where(axis_mask_vec == 1)[0]# Indexes of cos term
         id_tmp1 = arr1.tolist()
-        arr2 = np.where(axis_mask_vec3 == 2)[0]# Indexes of sin term
+        arr2 = np.where(axis_mask_vec == 2)[0]# Indexes of sin term
         id_tmp2 = arr2.tolist()
 
         for ii in range(len(id_tmp1)):
@@ -954,43 +927,54 @@ class PO:
             # coef_new_tmp[id_tmp2,0] = coef_new_tmp[id_tmp1,0] # This doesn't work
 
         # cos terms
-        axis_cos = axis_new_tmp[np.where(axis_mask_vec3 == 1)[0],:]
+        axis_cos = axis_new_tmp[np.where(axis_mask_vec == 1)[0],:]
         for ii in range(len(id_tmp1)):
             coef_new_tmp[id_tmp1[ii],0] = cos(q)*coef_new_tmp[id_tmp1[ii],0]# multiplying cos(q) to coef.
 
         H_axis_mat = np.repeat(H_axis, axis_cos.shape[0], axis=0)
 
-        axis_cos4 = axis_cos
-        H_axis_mat4 = H_axis_mat
-        # At this point, 0:E, 1:x, 2:y, 3:z
-        axis_cos4[axis_cos4 == 0] = 4 
-        H_axis_mat4[H_axis_mat4 == 0] = 4
-        # At this point, 4:E, 1:x, 2:y, 3:z. Use these values as indexes for mt_large.
-        #
-        # Note that this method is baed on MATLAB that uses 1-based indexes. 
-        # mat_large is desinged for 1-based index.
-        # Python used 0-based index.
+        axis_sin = np.zeros((axis_cos.shape[0], axis_cos.shape[1]))
 
-        axis_sin = np.zeros((axis_cos4.shape[0], axis_cos4.shape[1]))
+        mt_large = np.matrix([[0, 1, 2, 3],[1, 0, 3, -2],[2, -3, 0, 1],[3, 2, -1, 0]])
+            #             B
+            #          E  x  y  z
+            #          0  1  2  3 
+            #        ------------
+            #       |C
+            #    E 0|  0  1  2  3 
+            # A  x 1|  1  0  3 -2
+            #    y 2|  2 -3  0  1
+            #    z 3|  3  2 -1  0
+            #
+            # Row 0 and Colmn 0 are special cases for hE with axis value of 0.
+            #
+            # Example when Row 0 and Colmn 0 are required.
+            # A =  Ix*hE (axis = [1 0])
+            # B =  Iz*Sx (axis = [3 1])
+            # C = -Iy*Sx (mt_large[1,3] = -2, mt_large[0,1] = 1) # 0-based index
+
         for ii in range(axis_sin.shape[0]):
-            id1 = H_axis_mat4[ii,:]
+            id1 = H_axis_mat[ii,:]
             id1 = id1.astype(np.int64)
-            id2 = axis_cos4[ii,:]
+            id2 = axis_cos[ii,:]
             id2 = id2.astype(np.int64)
-            axis_sin_tmp = mt_large[np.ix_(id1 - 1, id2 - 1)]
+            axis_sin_tmp = mt_large[np.ix_(id1, id2)]
             axis_sin[ii,:] = np.diag(axis_sin_tmp)
             # Example
-            # Ix*hE: id1 - 1 = [0 3] 
-            # Iz*Sx: id2 - 1 = [2 0]
+            # Ix*hE: id1 = [r0 r1] = [1 0]
+            # Iz*Sx: id2 = [c0 c1] = [3 1]
             # axis_sin_tmp =
-            #    | mt_large[0,2], mt_large[0,0]|
-            #    | mt_large[3,2], mt_large[3,0]|
+            #    | mt_large[r0,c0], mt_large[r0,c1]|
+            #    | mt_large[r1,c0], mt_large[r1,c1]|
+            #  =
+            #    | mt_large[1,3], mt_large[1,1]|
+            #    | mt_large[0,3], mt_large[0,1]|
             #  = | -2 0 |
             #    |  3 1 |
-            # Only the diagonal compnents are necessary.
+            # Only the diagonal compnents of axis_sin_tmp are necessary.
             # axis_sin = [-2,1] => -Iy*Sx
 
-        axis_new_tmp[np.where(axis_mask_vec3 == 2)[0],:] = axis_sin
+        axis_new_tmp[np.where(axis_mask_vec == 2)[0],:] = axis_sin
         axis_new_tmp = abs(axis_new_tmp)
 
         # Determination of signs of sin terms
@@ -998,7 +982,7 @@ class PO:
         axis_sin_sign[axis_sin_sign == 0] = 1
         axis_sin_sign = np.prod(np.sign(axis_sin_sign),axis=1)
 
-        arr2 = np.where(axis_mask_vec3 == 2)[0]
+        arr2 = np.where(axis_mask_vec == 2)[0]
         id_tmp2 = arr2.tolist()
         for ii in range(len(id_tmp2)):
             coef_new_tmp[id_tmp2[ii],0] = sin(q)*coef_new_tmp[id_tmp2[ii],0]*axis_sin_sign[ii]# multiplying sin(q) to coef with sign.
@@ -1008,7 +992,7 @@ class PO:
         obj_out = PO.CombPO(obj_out)
         obj_out = PO.set_basis(obj_out, basis_org)
         return obj_out
-
+    
     def xyz2pmz(self):
         # conversion from Cartesian operator basis to lowring/raising operator basis
         if self.basis != 'xyz':
