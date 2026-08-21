@@ -4,7 +4,7 @@
 #  Tested      : Python 3.8.5, SymPy 1.11.2, NumPy 1.23.3
 #  Developer   : Dr. Kosuke Ohgo
 #  ULR         : https://github.com/ohgo1977/PO_Python
-#  Version     : 2.2.1
+#  Version     : 2.2.2
 # 
 #  Please read the manual (PO_Python_Manual.pdf) for details.
 # 
@@ -35,6 +35,7 @@
 # Version 2.2.1
 # Revised on 8/20/2026
 # observable() was modified in case there is no observable found.
+# run_PS() was modified in case phid is no provided.
 #
 # Version 2.2.0
 # Revised on 8/7/2026
@@ -1890,7 +1891,7 @@ class PO:
         for ii in range(len(para_lines)):
             exec(para_lines[ii], locals(), globals())
             if para_lines[ii].find('no_ph') >= 0:
-                exec('ph_cell = [0]*(no_ph + 1)',locals(), globals())
+                exec('ph_cell = [[0]]*(no_ph + 1)',locals(), globals())
 
         # Optional parameters
         varname = 'phid'
