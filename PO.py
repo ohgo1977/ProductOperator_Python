@@ -4,7 +4,7 @@
 #  Tested      : Python 3.8.5, SymPy 1.11.2, NumPy 1.23.3
 #  Developer   : Dr. Kosuke Ohgo
 #  ULR         : https://github.com/ohgo1977/PO_Python
-#  Version     : 2.2.2
+#  Version     : 2.2.1
 # 
 #  Please read the manual (PO_Python_Manual.pdf) for details.
 # 
