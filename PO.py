@@ -32,6 +32,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
+# Version 2.2.1
+# Revised on 8/20/2026
+# observable() was modified in case there is no observable found.
+#
 # Version 2.2.0
 # Revised on 8/7/2026
 # UrhoUinv_mt() was rewritten to remove unnecessary lines and change the master table for 0-based index.
@@ -1996,29 +2000,35 @@ class PO:
         if PO.__index_switch == 1:
             id_in = [x + 1 for x in id_in] # 0-based index => 1-based index
 
-        obj = PO.selPO(obj, id_in)        
+        if len(id_in) == 0: # This is the case no observable terms are found
+            obj = 0*self
+            s_out = 'No Observable Found'
 
-        id_vec, _ = PO.sp2id(sp_cell, spin_label_cell) # id_vec: 0-based index
+        else:
+            obj = PO.selPO(obj, id_in)        
 
-        id_in = np.array([])
-        for ii in range(obj.axis.shape[0]):
-            axis_tmp = obj.axis[ii,:]
-            if ((axis_tmp[0,id_vec] == 1)*1 + (axis_tmp[0,id_vec] == 2)*1).sum(1) == 1:
-                id_in = np.concatenate((id_in,[ii]),0)
+            id_vec, _ = PO.sp2id(sp_cell, spin_label_cell) # id_vec: 0-based index
 
-        id_in = id_in.astype(int).tolist() # 0-based ndex
+            id_in = np.array([])
+            for ii in range(obj.axis.shape[0]):
+                axis_tmp = obj.axis[ii,:]
+                if ((axis_tmp[0,id_vec] == 1)*1 + (axis_tmp[0,id_vec] == 2)*1).sum(1) == 1:
+                    id_in = np.concatenate((id_in,[ii]),0)
 
-        if PO.__index_switch == 1:
-            id_in = [x + 1 for x in id_in] # 0-based index => 1-based index
+            id_in = id_in.astype(int).tolist() # 0-based ndex
 
-        obj = PO.selPO(obj, id_in)
-        obj = PO.set_basis(obj, basis_org)
-        obj.disp = disp0
+            if PO.__index_switch == 1:
+                id_in = [x + 1 for x in id_in] # 0-based index => 1-based index
 
-        # https://docs.python.org/3/tutorial/datastructures.html#list-comprehensions
-        # In cotnrast with Matlab, spin_label_cell[id_in] won't work in Python.
-        # instead, use List Comprehensions
-        s_out = 'Selecting Observable of %s' % ' '.join([spin_label_cell[x] for x in id_vec])
+            obj = PO.selPO(obj, id_in)
+            obj = PO.set_basis(obj, basis_org)
+            obj.disp = disp0
+
+            # https://docs.python.org/3/tutorial/datastructures.html#list-comprehensions
+            # In cotnrast with Matlab, spin_label_cell[id_in] won't work in Python.
+            # instead, use List Comprehensions
+            s_out = 'Selecting Observable of %s' % ' '.join([spin_label_cell[x] for x in id_vec])
+
         s1 = '%s' % (s_out)
         s2 = '    %s' % (obj.txt)
         obj.logs = '%s\n%s\n%s' %(s0, s1, s2)
