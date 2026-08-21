@@ -4,7 +4,7 @@
 #  Tested      : Python 3.8.5, SymPy 1.11.2, NumPy 1.23.3
 #  Developer   : Dr. Kosuke Ohgo
 #  ULR         : https://github.com/ohgo1977/PO_Python
-#  Version     : 2.2.0
+#  Version     : 2.2.1
 # 
 #  Please read the manual (PO_Python_Manual.pdf) for details.
 # 
@@ -91,7 +91,7 @@
 # Revised on 5/24/2023
 # findterm(), Terms including a number (i.e., 'I1x') were not recognized.
 
-print("Hello from PO.py ver2.2.0!\n")
+print("Hello from PO.py ver2.2.1!\n")
 from sympy import exp, cos, sin, pi, symbols, I
 from sympy import init_printing, Wild
 from sympy.simplify.fu import TR8
